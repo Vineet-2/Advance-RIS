@@ -9,7 +9,7 @@ data:
   val_fraction: 0.1             # patient-level validation fraction
   test_fraction: 0.1            # patient-level test fraction (if no official test list)
   image_size: 224
-  num_workers: 0                # 0 is safest on Windows; use 4 on Linux
+  num_workers: 8                # 8 parallel workers utilizing 32-core CPU for fast data loading
   pin_memory: true
   cache_in_memory: false
 

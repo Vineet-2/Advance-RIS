@@ -62,10 +62,10 @@ class MultiLabelTrainer:
         self.dry_run = dry_run
 
         self.base_lr = optimizer.param_groups[0]["lr"]
-        if self.amp and hasattr(torch.cuda.amp, "GradScaler"):
-            self.scaler = torch.cuda.amp.GradScaler(enabled=self.amp)
-        elif self.amp and hasattr(torch, "amp") and hasattr(torch.amp, "GradScaler"):
+        if self.amp and hasattr(torch, "amp") and hasattr(torch.amp, "GradScaler"):
             self.scaler = torch.amp.GradScaler("cuda", enabled=self.amp)
+        elif self.amp and hasattr(torch.cuda.amp, "GradScaler"):
+            self.scaler = torch.cuda.amp.GradScaler(enabled=self.amp)
         else:
             class DummyScaler:
                 def scale(self, loss): return loss
@@ -91,6 +91,8 @@ class MultiLabelTrainer:
 
     def _autocast(self):
         if self.amp and self.device.type == "cuda":
+            if hasattr(torch, "amp") and hasattr(torch.amp, "autocast"):
+                return torch.amp.autocast("cuda", enabled=True)
             return torch.cuda.amp.autocast(enabled=True)
         from contextlib import nullcontext
         return nullcontext()
@@ -140,6 +142,12 @@ class MultiLabelTrainer:
             total_loss += loss.item() * batch_size
             total_samples += batch_size
 
+            if batch_idx % 100 == 0 or batch_idx == len(self.train_loader):
+                logger.info(
+                    "Epoch %d [%d/%d] - Batch Loss: %.4f | Avg Loss: %.4f",
+                    epoch, batch_idx, len(self.train_loader), loss.item(), total_loss / max(total_samples, 1)
+                )
+
             if self.dry_run and batch_idx >= 2:
                 logger.info("Dry-run: exiting train batch loop early (2 batches executed).")
                 break
@@ -173,6 +181,9 @@ class MultiLabelTrainer:
             batch_size = images.size(0)
             total_loss += loss.item() * batch_size
             total_samples += batch_size
+
+            if batch_idx % 50 == 0 or batch_idx == len(data_loader):
+                logger.info("Evaluating [%d/%d] batches - Current Loss: %.4f", batch_idx, len(data_loader), loss.item())
 
             if self.dry_run and batch_idx >= 2:
                 logger.info("Dry-run: exiting eval batch loop early (2 batches executed).")

@@ -146,9 +146,17 @@ def main():
     val_ds = NIHChestXrayDataset(val_records, classes=classes, is_training=False, image_size=image_size)
     test_ds = NIHChestXrayDataset(test_records, classes=classes, is_training=False, image_size=image_size) if test_records else None
 
-    train_loader = DataLoader(train_ds, batch_size=batch_size, shuffle=True, num_workers=workers, pin_memory=pin_mem)
-    val_loader = DataLoader(val_ds, batch_size=batch_size, shuffle=False, num_workers=workers, pin_memory=pin_mem)
-    test_loader = DataLoader(test_ds, batch_size=batch_size, shuffle=False, num_workers=workers, pin_memory=pin_mem) if test_ds else None
+    loader_kwargs = {
+        "num_workers": workers,
+        "pin_memory": pin_mem,
+    }
+    if workers > 0:
+        loader_kwargs["persistent_workers"] = True
+        loader_kwargs["prefetch_factor"] = 2
+
+    train_loader = DataLoader(train_ds, batch_size=batch_size, shuffle=True, **loader_kwargs)
+    val_loader = DataLoader(val_ds, batch_size=batch_size, shuffle=False, **loader_kwargs)
+    test_loader = DataLoader(test_ds, batch_size=batch_size, shuffle=False, **loader_kwargs) if test_ds else None
 
     # 3. Model construction
     model_cfg = cfg.get("model", {"architecture": "densenet121", "pretrained": True})
